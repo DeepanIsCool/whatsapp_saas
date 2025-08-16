@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useGuestAuth } from "@/hooks/use-auth";
+import { setAuthData } from "@/lib/cookies";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -31,6 +33,16 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { isLoading: authLoading } = useGuestAuth();
+
+  // Show loading spinner while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   // Direct API call function
   const login = async (
@@ -85,12 +97,44 @@ export default function LoginForm() {
       const response = await login(email, password);
 
       if (response.success && response.token && response.username) {
-        // Store authentication data in localStorage
-        localStorage.setItem("token", response.token);
-        localStorage.setItem("username", response.username);
-        localStorage.setItem("userEmail", email);
+        // Store authentication data in cookies
+        setAuthData({
+          token: response.token,
+          username: response.username,
+          email: email,
+        });
 
-        // Redirect to onboarding page
+        // Check if user already has WhatsApp configuration
+        try {
+          const userInfoResponse = await fetch(
+            `/api/getuserinfo/${response.username}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${response.token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (userInfoResponse.ok) {
+            const userData = await userInfoResponse.json();
+            // If user has WhatsApp configuration, redirect to dashboard
+            if (
+              userData.whatsappId &&
+              userData.whatsappAccessToken &&
+              userData.whatsappVerifyToken
+            ) {
+              router.push("/dashboard");
+              return;
+            }
+          }
+        } catch (error) {
+          console.error("Error checking user info:", error);
+          // Continue to onboarding on error
+        }
+
+        // Redirect to onboarding page if no configuration found
         router.push("/onboarding");
       } else {
         setError(response.message);

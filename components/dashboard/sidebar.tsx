@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
 import { useEffect, useState } from "react";
 
 interface SidebarProps {
@@ -18,35 +18,16 @@ interface SidebarProps {
 
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const [user, setUser] = useState<any>(null);
-  const router = useRouter();
+  const { authData, logout } = useAuth(false); // Don't redirect from sidebar
 
   useEffect(() => {
-    // Get user data from localStorage
-    const username = localStorage.getItem("username");
-    const userEmail = localStorage.getItem("userEmail");
-
-    if (username) {
+    if (authData.username) {
       setUser({
-        username,
-        email: userEmail,
+        username: authData.username,
+        email: authData.email,
       });
     }
-  }, []);
-
-  const logout = () => {
-    // Clear all authentication data
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    localStorage.removeItem("userEmail");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("teamId");
-    localStorage.removeItem("teamName");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userData");
-
-    // Redirect to login
-    router.push("/login");
-  };
+  }, [authData]);
 
   const menuItems = [
     { icon: "💬", label: "Chats", active: true },

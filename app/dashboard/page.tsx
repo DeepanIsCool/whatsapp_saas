@@ -1,34 +1,14 @@
 "use client";
 
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { authData, isLoading } = useAuth();
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem("token");
-    const username = localStorage.getItem("username");
-    const userEmail = localStorage.getItem("userEmail");
-
-    if (!token || !username) {
-      router.push("/login");
-      return;
-    }
-
-    // Set user data from localStorage
-    setUser({
-      username,
-      email: userEmail,
-      token,
-    });
-    setIsLoading(false);
-  }, [router]);
 
   if (isLoading) {
     return (
@@ -38,7 +18,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!user) {
+  if (!authData.username) {
     return null;
   }
 
@@ -59,18 +39,15 @@ export default function DashboardPage() {
                 Dashboard
               </h1>
               <p className="text-sm text-muted-foreground">
-                Welcome back, {user.username}!
+                Welcome back, {authData.username}!
               </p>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-sm text-muted-foreground">
-                {user.whatsappId ? (
-                  <span className="text-primary">✓ WhatsApp Connected</span>
-                ) : (
-                  <span className="text-muted-foreground">
-                    WhatsApp Not Connected
-                  </span>
-                )}
+                {/* Note: whatsappId would need to be fetched from API or stored in cookies */}
+                <span className="text-muted-foreground">
+                  WhatsApp Status: Check Configuration
+                </span>
               </div>
             </div>
           </div>
@@ -103,23 +80,21 @@ export default function DashboardPage() {
                 WhatsApp Business API or explore the available features.
               </p>
 
-              {!user.whatsappId && (
-                <div className="bg-muted/50 border border-border rounded-lg p-6 max-w-md mx-auto">
-                  <h3 className="font-medium text-foreground mb-2">
-                    Connect WhatsApp
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Connect your WhatsApp Business API to start sending and
-                    receiving messages.
-                  </p>
-                  <button
-                    onClick={() => router.push("/onboarding")}
-                    className="text-primary hover:underline text-sm font-medium"
-                  >
-                    Configure WhatsApp →
-                  </button>
-                </div>
-              )}
+              <div className="bg-muted/50 border border-border rounded-lg p-6 max-w-md mx-auto">
+                <h3 className="font-medium text-foreground mb-2">
+                  Connect WhatsApp
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Connect your WhatsApp Business API to start sending and
+                  receiving messages.
+                </p>
+                <button
+                  onClick={() => router.push("/onboarding")}
+                  className="text-primary hover:underline text-sm font-medium"
+                >
+                  Configure WhatsApp →
+                </button>
+              </div>
             </div>
           </div>
         </main>

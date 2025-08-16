@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useGuestAuth } from "@/hooks/use-auth";
+import { setAuthData } from "@/lib/cookies";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -58,6 +60,16 @@ export default function SignupForm() {
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { isLoading: authLoading } = useGuestAuth();
+
+  // Show loading spinner while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   // Direct API call function
   const createUser = async (
@@ -137,17 +149,15 @@ export default function SignupForm() {
       const response = await createUser(email, password);
 
       if (response.success && response.user) {
-        // Store authentication data in localStorage
-        localStorage.setItem("authToken", response.user.token);
-        localStorage.setItem("username", response.user.username);
-        localStorage.setItem("userId", response.user.id.toString());
-        localStorage.setItem("userEmail", response.user.email);
-
-        // Store team information if available
-        if (response.team) {
-          localStorage.setItem("teamId", response.team.id.toString());
-          localStorage.setItem("teamName", response.team.name);
-        }
+        // Store authentication data in cookies
+        setAuthData({
+          token: response.user.token,
+          username: response.user.username,
+          email: response.user.email,
+          userId: response.user.id.toString(),
+          teamId: response.team?.id.toString(),
+          teamName: response.team?.name,
+        });
 
         setSuccess(
           "Account created successfully! Your team has been set up. Redirecting..."

@@ -11,9 +11,10 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getAuthData, setCookie } from "@/lib/cookies";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function OnboardingPage() {
   const [whatsappId, setWhatsappId] = useState("");
@@ -25,7 +26,82 @@ export default function OnboardingPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingUserInfo, setIsCheckingUserInfo] = useState(true);
+  const [userHasDetails, setUserHasDetails] = useState(false);
   const router = useRouter();
+
+  // Check if user details are already present
+  useEffect(() => {
+    const checkUserInfo = async () => {
+      try {
+        const authData = getAuthData();
+        if (!authData.token || !authData.username) {
+          setIsCheckingUserInfo(false);
+          return;
+        }
+        const response = await fetch(`https://ai.rajatkhandelwal.com/wa/${authData.username}/getuserinfo/`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${authData.token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (
+            data.whatsappId &&
+            data.whatsappAccessToken &&
+            data.whatsappVerifyToken
+          ) {
+            // Save WhatsApp config to cookies
+            setCookie("whatsappId", data.whatsappId);
+            setCookie("whatsappAccessToken", data.whatsappAccessToken);
+            setCookie("whatsappVerifyToken", data.whatsappVerifyToken);
+            setCookie("whatsappApiUrl", data.whatsappApiUrl || "https://graph.facebook.com/v19.0");
+            // Redirect to dashboard
+            router.push("/dashboard");
+            return;
+          } else {
+            // Pre-fill the form with existing data if partially present
+            setUserHasDetails(false);
+            setWhatsappId(data.whatsappId || "");
+            setWhatsappAccessToken(data.whatsappAccessToken || "");
+            setWhatsappVerifyToken(data.whatsappVerifyToken || "");
+            setWhatsappApiUrl(data.whatsappApiUrl || "https://graph.facebook.com/v19.0");
+          }
+        } else if (response.status === 401) {
+          localStorage.clear();
+          router.push("/login");
+          return;
+        } else {
+          console.warn("Could not fetch user info:", response.status);
+        }
+      } catch (error) {
+        console.error("Error checking user info:", error);
+      } finally {
+        setIsCheckingUserInfo(false);
+      }
+    };
+    checkUserInfo();
+  }, [router]);
+
+  // If checking user info, show loading state
+  if (isCheckingUserInfo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-2xl">
+          <CardContent className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">
+                Checking your account details...
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const updateWhatsAppConfig = async (config: {
     whatsappId: string;
@@ -34,20 +110,19 @@ export default function OnboardingPage() {
     whatsappApiUrl: string;
   }) => {
     try {
-      // Get user token from localStorage or wherever it's stored
-      const token = localStorage.getItem("token") || "";
-      const username = localStorage.getItem("username") || "";
+      // Get user token from cookies
+      const authData = getAuthData();
 
-      if (!token || !username) {
+      if (!authData.token || !authData.username) {
         return { success: false, message: "Authentication required" };
       }
 
       const response = await fetch(
-        `/api/users/${username}/updatewhatsappconfig`,
+        `/api/users/${authData.username}/updatewhatsappconfig`,
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${authData.token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(config),
@@ -91,7 +166,11 @@ export default function OnboardingPage() {
     setIsLoading(false);
 
     if (response.success) {
-      setSuccess("WhatsApp configuration saved successfully!");
+      setSuccess(
+        userHasDetails
+          ? "WhatsApp configuration updated successfully!"
+          : "WhatsApp configuration saved successfully!"
+      );
       setTimeout(() => {
         router.push("/dashboard");
       }, 1500);
@@ -118,14 +197,26 @@ export default function OnboardingPage() {
             </svg>
           </div>
           <CardTitle className="text-2xl font-bold">
-            WhatsApp Configuration
+            {userHasDetails
+              ? "Update WhatsApp Configuration"
+              : "WhatsApp Configuration"}
           </CardTitle>
           <CardDescription>
-            Connect your WhatsApp Business API to get started. You can skip this
-            step and configure it later.
+            {userHasDetails
+              ? "Your WhatsApp Business API is already configured. You can update the settings below or proceed to dashboard."
+              : "Connect your WhatsApp Business API to get started. You can skip this step and configure it later."}
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {userHasDetails && (
+            <Alert className="border-primary bg-primary/10 mb-6">
+              <AlertDescription className="text-primary">
+                ✓ Your WhatsApp configuration is already set up! You can update
+                it below or go to your dashboard.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <Alert variant="destructive">
@@ -211,7 +302,13 @@ export default function OnboardingPage() {
 
             <div className="flex flex-col sm:flex-row gap-3">
               <Button type="submit" className="flex-1" disabled={isLoading}>
-                {isLoading ? "Saving Configuration..." : "Save Configuration"}
+                {isLoading
+                  ? userHasDetails
+                    ? "Updating Configuration..."
+                    : "Saving Configuration..."
+                  : userHasDetails
+                  ? "Update Configuration"
+                  : "Save Configuration"}
               </Button>
               <Button
                 type="button"
@@ -220,7 +317,7 @@ export default function OnboardingPage() {
                 disabled={isLoading}
                 className="flex-1 bg-transparent"
               >
-                Skip for Now
+                {userHasDetails ? "Go to Dashboard" : "Skip for Now"}
               </Button>
             </div>
           </form>

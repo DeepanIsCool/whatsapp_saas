@@ -1,27 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useGuestAuth } from "@/hooks/use-auth";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 
 export default function HomePage() {
-  const [user, setUser] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem("token");
-    const username = localStorage.getItem("username");
-
-    if (token && username) {
-      setUser({ username, token });
-      router.push("/dashboard");
-    } else {
-      setIsLoading(false);
-    }
-  }, [router]);
+  const { isLoading } = useGuestAuth();
 
   if (isLoading) {
     return (
