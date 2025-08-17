@@ -1,4 +1,5 @@
-import { clearAuthData, getAuthData, isAuthenticated } from '@/lib/cookies';
+import { clearAuthData, getAuthData, isAuthenticated, setAuthData } from '@/lib/cookies';
+import { Team } from '@/types/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -9,6 +10,9 @@ interface AuthData {
   userId: string | null;
   teamId: string | null;
   teamName: string | null;
+  ownerUsername: string | null;
+  teams?: Team[];
+  currentTeam?: Team;
 }
 
 interface UseAuthReturn {
@@ -16,26 +20,28 @@ interface UseAuthReturn {
   isLoading: boolean;
   authData: AuthData;
   logout: () => void;
+  switchTeam: (team: Team) => void;
 }
 
 /**
  * Custom hook for managing authentication state using cookies
  */
 export function useAuth(redirectToLogin = true): UseAuthReturn {
-  const [authData, setAuthData] = useState<AuthData>({
+  const [authData, setAuthDataState] = useState<AuthData>({
     token: null,
     username: null,
     email: null,
     userId: null,
     teamId: null,
     teamName: null,
+    ownerUsername: null,
   });
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     const data = getAuthData();
-    setAuthData(data);
+    setAuthDataState(data);
     setIsLoading(false);
 
     // Redirect to login if not authenticated and redirectToLogin is true
@@ -46,15 +52,40 @@ export function useAuth(redirectToLogin = true): UseAuthReturn {
 
   const logout = () => {
     clearAuthData();
-    setAuthData({
+    setAuthDataState({
       token: null,
       username: null,
       email: null,
       userId: null,
       teamId: null,
       teamName: null,
+      ownerUsername: null,
     });
     router.push('/login');
+  };
+
+  const switchTeam = (team: Team) => {
+    const currentData = getAuthData();
+    if (!currentData.token) return; // Don't switch if no token
+    
+    const updatedData = {
+      token: currentData.token,
+      username: currentData.username || '',
+      email: currentData.email || '',
+      ...(currentData.userId && { userId: currentData.userId }),
+      teamId: team.teamId.toString(),
+      teamName: team.teamName,
+      ownerUsername: team.ownerUsername,
+    };
+    
+    setAuthData(updatedData);
+    setAuthDataState({
+      ...currentData,
+      teamId: team.teamId.toString(),
+      teamName: team.teamName,
+      ownerUsername: team.ownerUsername,
+      currentTeam: team,
+    });
   };
 
   return {
@@ -62,6 +93,7 @@ export function useAuth(redirectToLogin = true): UseAuthReturn {
     isLoading,
     authData,
     logout,
+    switchTeam,
   };
 }
 

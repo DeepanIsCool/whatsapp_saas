@@ -31,6 +31,10 @@ const COOKIE_CONFIG = {
     name: 'team_name',
     maxAge: 60 * 60 * 24 * 30, // 30 days
   },
+  OWNER_USERNAME: {
+    name: 'owner_username',
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+  },
 };
 
 /**
@@ -161,6 +165,20 @@ export function getTeamName(): string | null {
 }
 
 /**
+ * Set owner username in cookie
+ */
+export function setOwnerUsername(username: string): void {
+  setCookie(COOKIE_CONFIG.OWNER_USERNAME.name, username, COOKIE_CONFIG.OWNER_USERNAME.maxAge);
+}
+
+/**
+ * Get owner username from cookie
+ */
+export function getOwnerUsername(): string | null {
+  return getCookie(COOKIE_CONFIG.OWNER_USERNAME.name);
+}
+
+/**
  * Set all authentication data in cookies
  */
 export function setAuthData(data: {
@@ -170,6 +188,7 @@ export function setAuthData(data: {
   userId?: string;
   teamId?: string;
   teamName?: string;
+  ownerUsername?: string;
 }): void {
   setAuthToken(data.token);
   setUsername(data.username);
@@ -186,6 +205,10 @@ export function setAuthData(data: {
   if (data.teamName) {
     setTeamName(data.teamName);
   }
+
+  if (data.ownerUsername) {
+    setOwnerUsername(data.ownerUsername);
+  }
 }
 
 /**
@@ -198,6 +221,7 @@ export function getAuthData(): {
   userId: string | null;
   teamId: string | null;
   teamName: string | null;
+  ownerUsername: string | null;
 } {
   return {
     token: getAuthToken(),
@@ -206,6 +230,7 @@ export function getAuthData(): {
     userId: getUserId(),
     teamId: getTeamId(),
     teamName: getTeamName(),
+    ownerUsername: getOwnerUsername(),
   };
 }
 
@@ -219,6 +244,7 @@ export function clearAuthData(): void {
   deleteCookie(COOKIE_CONFIG.USER_ID.name);
   deleteCookie(COOKIE_CONFIG.TEAM_ID.name);
   deleteCookie(COOKIE_CONFIG.TEAM_NAME.name);
+  deleteCookie(COOKIE_CONFIG.OWNER_USERNAME.name);
 }
 
 /**

@@ -107,7 +107,7 @@ export default function LoginForm() {
         // Check if user already has WhatsApp configuration
         try {
           const userInfoResponse = await fetch(
-            `/api/getuserinfo/${response.username}`,
+            `https://ai.rajatkhandelwal.com/wa/${response.username}/getuserinfo/`,
             {
               method: "GET",
               headers: {
@@ -119,6 +119,33 @@ export default function LoginForm() {
 
           if (userInfoResponse.ok) {
             const userData = await userInfoResponse.json();
+
+            // Store team information if available
+            if (userData.teams && userData.teams.length > 0) {
+              // Find the user's primary team (where they are admin/owner) or use the first team
+              const primaryTeam =
+                userData.teams.find(
+                  (team: any) => team.role === "ADMIN" || team.role === "OWNER"
+                ) || userData.teams[0];
+
+              // Update auth data with team information
+              setAuthData({
+                token: response.token,
+                username: response.username,
+                email: email,
+                teamId: primaryTeam.teamId.toString(),
+                teamName: primaryTeam.teamName,
+                ownerUsername: primaryTeam.ownerUsername,
+              });
+            } else {
+              // If no teams, just store basic auth data
+              setAuthData({
+                token: response.token,
+                username: response.username,
+                email: email,
+              });
+            }
+
             // If user has WhatsApp configuration, redirect to dashboard
             if (
               userData.whatsappId &&

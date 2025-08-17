@@ -49,6 +49,13 @@ export default function DashboardPage() {
                   WhatsApp Status: Check Configuration
                 </span>
               </div>
+              {authData.teamName && (
+                <div className="text-sm text-muted-foreground">
+                  <span className="text-muted-foreground">
+                    Team: {authData.teamName} (Owner: {authData.ownerUsername})
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -95,6 +102,17 @@ export default function DashboardPage() {
                   Configure WhatsApp →
                 </button>
               </div>
+
+              {!authData.ownerUsername && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-md mx-auto mt-4">
+                  <h3 className="font-medium text-blue-900 mb-2">
+                    Select a Team
+                  </h3>
+                  <p className="text-sm text-blue-700 mb-4">
+                    You need to select a team to access WhatsApp features. Use the team switcher in the sidebar.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </main>

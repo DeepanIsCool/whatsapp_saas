@@ -39,15 +39,32 @@ export default function OnboardingPage() {
           setIsCheckingUserInfo(false);
           return;
         }
-        const response = await fetch(`https://ai.rajatkhandelwal.com/wa/${authData.username}/getuserinfo/`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${authData.token}`,
-            "Content-Type": "application/json",
-          },
-        });
+        const response = await fetch(
+          `https://ai.rajatkhandelwal.com/wa/${authData.username}/getuserinfo/`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${authData.token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
         if (response.ok) {
           const data = await response.json();
+
+          // Store team information if available
+          if (data.teams && data.teams.length > 0) {
+            // Find the user's primary team (where they are admin/owner) or use the first team
+            const primaryTeam =
+              data.teams.find(
+                (team: any) => team.role === "ADMIN" || team.role === "OWNER"
+              ) || data.teams[0];
+
+            // Update cookies with team information
+            setCookie("teamId", primaryTeam.teamId.toString());
+            setCookie("teamName", primaryTeam.teamName);
+          }
+
           if (
             data.whatsappId &&
             data.whatsappAccessToken &&
@@ -57,7 +74,10 @@ export default function OnboardingPage() {
             setCookie("whatsappId", data.whatsappId);
             setCookie("whatsappAccessToken", data.whatsappAccessToken);
             setCookie("whatsappVerifyToken", data.whatsappVerifyToken);
-            setCookie("whatsappApiUrl", data.whatsappApiUrl || "https://graph.facebook.com/v19.0");
+            setCookie(
+              "whatsappApiUrl",
+              data.whatsappApiUrl || "https://graph.facebook.com/v19.0"
+            );
             // Redirect to dashboard
             router.push("/dashboard");
             return;
@@ -67,7 +87,9 @@ export default function OnboardingPage() {
             setWhatsappId(data.whatsappId || "");
             setWhatsappAccessToken(data.whatsappAccessToken || "");
             setWhatsappVerifyToken(data.whatsappVerifyToken || "");
-            setWhatsappApiUrl(data.whatsappApiUrl || "https://graph.facebook.com/v19.0");
+            setWhatsappApiUrl(
+              data.whatsappApiUrl || "https://graph.facebook.com/v19.0"
+            );
           }
         } else if (response.status === 401) {
           localStorage.clear();

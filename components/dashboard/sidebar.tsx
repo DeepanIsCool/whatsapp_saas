@@ -8,7 +8,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
+import { Team } from "@/types/auth";
+import { ChevronDown, Search, Users } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 interface SidebarProps {
@@ -18,7 +22,11 @@ interface SidebarProps {
 
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const [user, setUser] = useState<any>(null);
-  const { authData, logout } = useAuth(false); // Don't redirect from sidebar
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamSearchQuery, setTeamSearchQuery] = useState("");
+  const { authData, logout, switchTeam } = useAuth(false); // Don't redirect from sidebar
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (authData.username) {
@@ -29,12 +37,45 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     }
   }, [authData]);
 
+  // Fetch user teams
+  useEffect(() => {
+    const fetchUserTeams = async () => {
+      if (!authData.username || !authData.token) return;
+
+      try {
+        const response = await fetch(
+          `https://ai.rajatkhandelwal.com/wa/${authData.username}/getuserinfo/`,
+          {
+            headers: {
+              Authorization: `Bearer ${authData.token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response.ok) {
+          const userData = await response.json();
+          if (userData.teams) {
+            setTeams(userData.teams);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching teams:", error);
+      }
+    };
+
+    fetchUserTeams();
+  }, [authData.username, authData.token]);
+
+  const filteredTeams = teams.filter(
+    (team) =>
+      team.teamName.toLowerCase().includes(teamSearchQuery.toLowerCase()) ||
+      team.ownerUsername.toLowerCase().includes(teamSearchQuery.toLowerCase())
+  );
+
   const menuItems = [
-    { icon: "💬", label: "Chats", active: true },
-    { icon: "🤖", label: "AI Assistant", active: false },
-    { icon: "📊", label: "Analytics", active: false },
-    { icon: "👥", label: "Contacts", active: false },
-    { icon: "⚙️", label: "Settings", active: false },
+    { icon: "💬", label: "Chats", href: "/live_chat" },
+    { icon: "🔍", label: "Templates", href: "/template_builder" },
   ];
 
   return (
@@ -43,72 +84,204 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         isCollapsed ? "w-16" : "w-64"
       }`}
     >
-      {/* Header */}
-      <div className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-sidebar-primary rounded-full flex items-center justify-center flex-shrink-0">
-            <svg
-              className="w-4 h-4 text-sidebar-primary-foreground"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488" />
-            </svg>
-          </div>
-          {!isCollapsed && (
-            <div>
-              <h1 className="font-semibold text-sidebar-foreground">
-                WhatsApp SaaS
-              </h1>
-              <p className="text-xs text-sidebar-foreground/60">
-                AI-Powered Platform
-              </p>
-            </div>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggle}
-            className="ml-auto p-1 h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent"
+      {/* Collapse Button at Top */}
+      <div className="p-4 border-b border-sidebar-border flex items-center justify-center">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onToggle}
+          className="p-1 h-8 w-8 text-sidebar-foreground hover:bg-sidebar-accent"
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <svg
+            className={`w-4 h-4 transition-transform ${
+              isCollapsed ? "rotate-180" : ""
+            }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <svg
-              className={`w-4 h-4 transition-transform ${
-                isCollapsed ? "rotate-180" : ""
-              }`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </Button>
-        </div>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+        </Button>
+        {!isCollapsed && (
+          <div className="ml-3">
+            <h1 className="font-semibold text-sidebar-foreground">
+              WhatsApp SaaS
+            </h1>
+            <p className="text-xs text-sidebar-foreground/60">
+              AI-Powered Platform
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* Team Switcher */}
+      {teams.length > 0 && (
+        <div className="p-4 border-b border-sidebar-border">
+          {!isCollapsed ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-between text-sidebar-foreground hover:bg-sidebar-accent"
+                >
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <div className="text-left">
+                      <p className="text-sm font-medium truncate">
+                        {authData.teamName || "Select Team"}
+                      </p>
+                      <p className="text-xs text-sidebar-foreground/60 truncate">
+                        {authData.ownerUsername
+                          ? `Owner: ${authData.ownerUsername}`
+                          : "No team selected"}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-80">
+                <div className="p-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search for a team..."
+                      value={teamSearchQuery}
+                      onChange={(e) => setTeamSearchQuery(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                <div className="max-h-60 overflow-y-auto">
+                  {filteredTeams.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground text-center">
+                      No teams found
+                    </div>
+                  ) : (
+                    filteredTeams.map((team) => (
+                      <DropdownMenuItem
+                        key={team.teamId}
+                        onClick={() => switchTeam(team)}
+                        className={`flex items-center gap-3 p-3 cursor-pointer ${
+                          authData.teamId === team.teamId.toString()
+                            ? "bg-sidebar-accent"
+                            : ""
+                        }`}
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">
+                            {team.teamName.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 text-left">
+                          <p className="text-sm font-medium truncate">
+                            {team.teamName}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            Owner: {team.ownerUsername} • {team.role}
+                          </p>
+                        </div>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-8 p-1 text-sidebar-foreground hover:bg-sidebar-accent"
+                  title={authData.teamName || "Select Team"}
+                >
+                  <Users className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-80">
+                <div className="p-2">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search for a team..."
+                      value={teamSearchQuery}
+                      onChange={(e) => setTeamSearchQuery(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+                <div className="max-h-60 overflow-y-auto">
+                  {filteredTeams.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground text-center">
+                      No teams found
+                    </div>
+                  ) : (
+                    filteredTeams.map((team) => (
+                      <DropdownMenuItem
+                        key={team.teamId}
+                        onClick={() => switchTeam(team)}
+                        className={`flex items-center gap-3 p-3 cursor-pointer ${
+                          authData.teamId === team.teamId.toString()
+                            ? "bg-sidebar-accent"
+                            : ""
+                        }`}
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">
+                            {team.teamName.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 text-left">
+                          <p className="text-sm font-medium truncate">
+                            {team.teamName}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            Owner: {team.ownerUsername} • {team.role}
+                          </p>
+                        </div>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="flex-1 p-2">
         <nav className="space-y-1">
-          {menuItems.map((item, index) => (
-            <Button
-              key={index}
-              variant={item.active ? "default" : "ghost"}
-              className={`w-full justify-start gap-3 ${
-                isCollapsed ? "px-2" : "px-3"
-              } ${
-                item.active
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              }`}
-            >
-              <span className="text-lg">{item.icon}</span>
-              {!isCollapsed && <span>{item.label}</span>}
-            </Button>
-          ))}
+          {menuItems.map((item, index) => {
+            const isActive = pathname === item.href;
+            return (
+              <Button
+                key={index}
+                variant={isActive ? "default" : "ghost"}
+                className={`w-full justify-start gap-3 ${
+                  isCollapsed ? "px-2" : "px-3"
+                } ${
+                  isActive
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                }`}
+                onClick={() => router.push(item.href)}
+              >
+                <span className="text-lg">{item.icon}</span>
+                {!isCollapsed && <span>{item.label}</span>}
+              </Button>
+            );
+          })}
         </nav>
       </div>
 
